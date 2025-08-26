@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import NuevaVenta from "@/components/DashboardViews/NuevaVenta";
+import AgregarProducto from "@/components/DashboardViews/AgregarProducto";
+import RegistrarGasto from "@/components/DashboardViews/RegistrarGasto";
 
 export default function Dashboard() {
-  const [ventasHoy, setVentasHoy] = useState(0);
-  const [ventasMes, setVentasMes] = useState(0);
-  const [ventasTotales, setVentasTotales] = useState(0);
+  const [activeView, setActiveView] = useState<
+    "nueva" | "producto" | "gasto" | null
+  >("nueva");
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="max-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
       <header className="bg-blue-600 text-white p-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">Punto de Venta</h1>
@@ -22,29 +25,57 @@ export default function Dashboard() {
           <h2 className="font-bold text-lg mb-2">Resumen de Ventas</h2>
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-blue-100 p-4 rounded text-center">
-              Ventas Hoy: ${ventasHoy}
+              Ventas Hoy:
             </div>
             <div className="bg-blue-100 p-4 rounded text-center">
-              Ventas Mes: ${ventasMes}
+              Ventas Mes:
             </div>
             <div className="bg-blue-100 p-4 rounded text-center">
-              Ventas Totales: ${ventasTotales}
+              Ventas Totales:
             </div>
           </div>
         </section>
 
         {/* Botones rápidos */}
-        <section className="flex gap-4">
-          <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+        <section className="flex gap-4 justify-center p-4 bg-gray-200">
+          <button
+            className={`px-4 py-2 rounded border-4 border-green-500 ${
+              activeView === "nueva"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-black"
+            } hover:bg-blue-500`}
+            onClick={() => setActiveView("nueva")}
+          >
             Nueva Venta
           </button>
-          <button className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
-            Agregar Producto
-          </button>
-          <button className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+          <button
+            className={`px-4 py-2 rounded border-4 border-red-500 ${
+              activeView === "gasto"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-black"
+            } hover:bg-blue-500`}
+            onClick={() => setActiveView("gasto")}
+          >
             Registrar Gasto
           </button>
+          <button
+            className={`px-4 py-2 rounded border-4 border-yellow-500 ${
+              activeView === "producto"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-black"
+            } hover:bg-blue-500`}
+            onClick={() => setActiveView("producto")}
+          >
+            Agregar Producto
+          </button>
         </section>
+
+        {/* Vista dinámica */}
+        <div className="p-6 flex-1">
+          {activeView === "nueva" && <NuevaVenta />}
+          {activeView === "producto" && <AgregarProducto />}
+          {activeView === "gasto" && <RegistrarGasto />}
+        </div>
       </main>
     </div>
   );
