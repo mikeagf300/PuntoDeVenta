@@ -94,10 +94,10 @@ export default function AgregarProducto() {
   const handleEditarProducto = (
     index: number,
     field: keyof Producto,
-    value: any
+    value: Producto[keyof Producto]
   ) => {
     const updated = [...listaAgregar];
-    updated[index][field] = value;
+    updated[index][field] = value as never;
     setListaAgregar(updated);
   };
 
