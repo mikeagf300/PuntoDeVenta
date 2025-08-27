@@ -6,77 +6,80 @@ import AgregarProducto from "@/components/DashboardViews/AgregarProducto";
 import RegistrarGasto from "@/components/DashboardViews/RegistrarGasto";
 
 export default function Dashboard() {
-  const [activeView, setActiveView] = useState<
-    "nueva" | "producto" | "gasto" | null
-  >("nueva");
+  const [activeView, setActiveView] = useState<"nueva" | "producto" | "gasto">(
+    "nueva"
+  );
 
   return (
-    <div className="max-h-screen bg-gray-100 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-blue-600 text-white p-4 flex justify-between items-center">
+      <header className="bg-blue-600 text-white p-4 flex justify-between items-center flex-none">
         <h1 className="text-xl font-bold">Punto de Venta</h1>
         <div>Usuario: Admin</div>
       </header>
 
       {/* Contenido */}
-      <main className="p-6 flex flex-col gap-6">
-        {/* Resumen de ventas */}
-        <section className="bg-white p-4 rounded shadow">
-          <h2 className="font-bold text-lg mb-2">Resumen de Ventas</h2>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-blue-100 p-4 rounded text-center">
-              Ventas Hoy:
+      <div className="flex flex-1 overflow-hidden">
+        {/* Panel principal con scroll */}
+        <main className="p-6 flex flex-col gap-6 flex-1 overflow-auto">
+          {/* Resumen de ventas */}
+          <section className="bg-white p-4 rounded shadow">
+            <h2 className="font-bold text-lg mb-2">Resumen de Ventas</h2>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-blue-100 p-4 rounded text-center">
+                Ventas Hoy:
+              </div>
+              <div className="bg-blue-100 p-4 rounded text-center">
+                Ventas Mes:
+              </div>
+              <div className="bg-blue-100 p-4 rounded text-center">
+                Ventas Totales:
+              </div>
             </div>
-            <div className="bg-blue-100 p-4 rounded text-center">
-              Ventas Mes:
-            </div>
-            <div className="bg-blue-100 p-4 rounded text-center">
-              Ventas Totales:
-            </div>
+          </section>
+
+          {/* Botones rápidos */}
+          <section className="flex gap-4 justify-center p-4 bg-gray-200">
+            <button
+              className={`px-4 py-2 rounded border-4 border-green-500 ${
+                activeView === "nueva"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-black"
+              } hover:bg-blue-500`}
+              onClick={() => setActiveView("nueva")}
+            >
+              Nueva Venta
+            </button>
+            <button
+              className={`px-4 py-2 rounded border-4 border-red-500 ${
+                activeView === "gasto"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-black"
+              } hover:bg-blue-500`}
+              onClick={() => setActiveView("gasto")}
+            >
+              Registrar Gasto
+            </button>
+            <button
+              className={`px-4 py-2 rounded border-4 border-yellow-500 ${
+                activeView === "producto"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-black"
+              } hover:bg-blue-500`}
+              onClick={() => setActiveView("producto")}
+            >
+              Agregar Producto
+            </button>
+          </section>
+
+          {/* Vista dinámica */}
+          <div className="flex-1 p-6 overflow-auto">
+            {activeView === "nueva" && <NuevaVenta />}
+            {activeView === "producto" && <AgregarProducto />}
+            {activeView === "gasto" && <RegistrarGasto />}
           </div>
-        </section>
-
-        {/* Botones rápidos */}
-        <section className="flex gap-4 justify-center p-4 bg-gray-200">
-          <button
-            className={`px-4 py-2 rounded border-4 border-green-500 ${
-              activeView === "nueva"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-black"
-            } hover:bg-blue-500`}
-            onClick={() => setActiveView("nueva")}
-          >
-            Nueva Venta
-          </button>
-          <button
-            className={`px-4 py-2 rounded border-4 border-red-500 ${
-              activeView === "gasto"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-black"
-            } hover:bg-blue-500`}
-            onClick={() => setActiveView("gasto")}
-          >
-            Registrar Gasto
-          </button>
-          <button
-            className={`px-4 py-2 rounded border-4 border-yellow-500 ${
-              activeView === "producto"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-black"
-            } hover:bg-blue-500`}
-            onClick={() => setActiveView("producto")}
-          >
-            Agregar Producto
-          </button>
-        </section>
-
-        {/* Vista dinámica */}
-        <div className="p-6 flex-1">
-          {activeView === "nueva" && <NuevaVenta />}
-          {activeView === "producto" && <AgregarProducto />}
-          {activeView === "gasto" && <RegistrarGasto />}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
