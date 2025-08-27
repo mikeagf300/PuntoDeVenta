@@ -3,22 +3,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Product, Sale } from "@/interfaces/productos";
-
-// Datos simulados de inventario
-const products: Product[] = [
-  { id: 1, name: "Coca Cola 600ml", price: 15 },
-  { id: 2, name: "Coca Cola 1L", price: 20 },
-  { id: 3, name: "Coca Cola 1.5L", price: 25 },
-  { id: 4, name: "Pepsi 600ml", price: 14 },
-  { id: 5, name: "Pepsi 1L", price: 19 },
-];
-
-interface SaleItem {
-  product: Product;
-  quantity: number;
-  total: number;
-}
+import { Product, Sale, SaleItem } from "@/interfaces/productos";
+import { products } from "../mocks/inventory";
 
 export default function NuevaVenta() {
   const [query, setQuery] = useState("");
@@ -37,12 +23,25 @@ export default function NuevaVenta() {
 
   const handleAddItem = () => {
     if (!selectedProduct) return;
-    const newItem: SaleItem = {
-      product: selectedProduct,
-      quantity,
-      total: selectedProduct.price * quantity,
-    };
-    setCurrentItems([...currentItems, newItem]);
+    const existingIndex = currentItems.findIndex(
+      (item) => item.product.id === selectedProduct.id
+    );
+
+    if (existingIndex >= 0) {
+      const updated = [...currentItems];
+      updated[existingIndex].quantity += quantity;
+      updated[existingIndex].total =
+        updated[existingIndex].product.price * updated[existingIndex].quantity;
+      setCurrentItems(updated);
+    } else {
+      const newItem: SaleItem = {
+        product: selectedProduct,
+        quantity,
+        total: selectedProduct.price * quantity,
+      };
+      setCurrentItems([...currentItems, newItem]);
+    }
+
     setSelectedProduct(null);
     setQuery("");
     setQuantity(1);
@@ -73,40 +72,38 @@ export default function NuevaVenta() {
 
   return (
     <div className="space-y-4">
+      {/* Buscador */}
       <Card className="p-4 shadow-md rounded-2xl">
-        <CardContent className="space-y-4">
-          {/* Buscar producto */}
-          <div>
-            <label className="block text-sm font-medium">Producto</label>
-            <Input
-              placeholder="Buscar producto..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSelectedProduct(null);
-              }}
-            />
-            {query && !selectedProduct && (
-              <div className="mt-2 border rounded-md bg-white shadow">
-                {suggestions.map((p) => (
-                  <div
-                    key={p.id}
-                    className="p-2 cursor-pointer hover:bg-gray-100"
-                    onClick={() => {
-                      setSelectedProduct(p);
-                      setQuery(p.name);
-                    }}
-                  >
-                    {p.name} - ${p.price}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <CardContent>
+          <label className="block text-sm font-medium mb-1">Producto</label>
+          <Input
+            placeholder="Buscar producto..."
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedProduct(null);
+            }}
+          />
+          {query && !selectedProduct && (
+            <div className="mt-2 border rounded-md bg-white shadow max-h-60 overflow-y-auto">
+              {suggestions.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-2 cursor-pointer hover:bg-gray-100"
+                  onClick={() => {
+                    setSelectedProduct(p);
+                    setQuery(p.name);
+                  }}
+                >
+                  {p.name} - ${p.price}
+                </div>
+              ))}
+            </div>
+          )}
 
-          {/* Configurar cantidad y agregar a la venta */}
+          {/* Cantidad del producto seleccionado */}
           {selectedProduct && (
-            <div className="space-y-2">
+            <div className="mt-2 space-y-2">
               <div>
                 <label className="block text-sm font-medium">Cantidad</label>
                 <Input
@@ -132,33 +129,54 @@ export default function NuevaVenta() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          {/* Lista de productos agregados */}
-          {currentItems.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-medium">Productos en la venta:</h3>
+      {/* Layout principal: lista de productos y resumen */}
+      {currentItems.length > 0 && (
+        <div className="flex flex-col lg:flex-row gap-4 max-w-4xl mx-auto">
+          {/* Productos en venta */}
+          <Card className="flex-1 p-4 shadow-md rounded-2xl">
+            <CardContent className="space-y-2">
+              <h3 className="font-medium mb-2">Productos en la venta:</h3>
               {currentItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex justify-between items-center p-2 border rounded-md"
+                  className="flex items-center gap-2 p-2 border rounded-md"
                 >
-                  <span>
-                    {item.product.name} x{item.quantity}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span>${item.total}</span>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleRemoveItem(idx)}
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={item.quantity}
+                    className="w-12 p-1 text-center text-sm"
+                    onFocus={(e) => e.target.select()}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => {
+                      const updated = [...currentItems];
+                      updated[idx].quantity = Number(e.target.value);
+                      updated[idx].total =
+                        updated[idx].product.price * updated[idx].quantity;
+                      setCurrentItems(updated);
+                    }}
+                  />
+                  <span className="flex-1">{item.product.name}</span>
+                  <span className="w-20 text-right">${item.total}</span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleRemoveItem(idx)}
+                  >
+                    Eliminar
+                  </Button>
                 </div>
               ))}
-              <p className="text-lg font-bold">Total: ${total}</p>
+            </CardContent>
+          </Card>
 
+          {/* Resumen de venta */}
+          <Card className="w-64 p-4 shadow-md rounded-2xl">
+            <CardContent className="space-y-2">
+              <p className="text-lg font-bold">Total: ${total}</p>
               <div>
                 <label className="block text-sm font-medium">
                   Pago recibido
@@ -172,23 +190,22 @@ export default function NuevaVenta() {
                   onChange={(e) => setPayment(Number(e.target.value))}
                 />
                 {payment >= total && (
-                  <p className="text-green-600">Cambio: ${change}</p>
+                  <p className="text-green-600 font-bold">Cambio: ${change}</p>
                 )}
               </div>
-
               <Button
                 className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl"
                 onClick={handleFinalizeSale}
               >
                 Finalizar Venta
               </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Historial de ventas */}
-      <Card className="p-4 shadow-md rounded-2xl">
+      <Card className="p-4 shadow-md rounded-2xl max-w-4xl mx-auto">
         <h2 className="text-lg font-bold mb-2">Historial de Ventas</h2>
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {salesHistory.map((sale, index) => (
