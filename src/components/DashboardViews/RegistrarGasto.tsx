@@ -11,16 +11,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Toaster, toast } from "sonner";
-
-// Mock de categorías de gasto
-const gastoCategorias = ["Servicios", "Insumos", "Inventario", "Otro"];
-
-interface Gasto {
-  nombre: string;
-  categoria: string;
-  monto: number;
-  fecha: string;
-}
+import { Gasto } from "@/interfaces/gastos";
+import { gastoCategorias } from "../mocks/gastos";
 
 export default function RegistrarGasto() {
   const [nombre, setNombre] = useState("");
