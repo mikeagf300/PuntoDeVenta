@@ -12,12 +12,6 @@ export default function Dashboard() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-blue-600 text-white p-4 flex justify-between items-center flex-none">
-        <h1 className="text-xl font-bold">Punto de Venta</h1>
-        <div>Usuario: Admin</div>
-      </header>
-
       {/* Contenido */}
       <div className="flex flex-1 overflow-hidden">
         {/* Panel principal con scroll */}
