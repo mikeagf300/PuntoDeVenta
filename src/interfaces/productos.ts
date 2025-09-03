@@ -1,7 +1,10 @@
 export interface Product {
-  id: number;
+  id?: number; // opcional porque lo generas al guardar
   name: string;
+  category: string;
+  stock: number;
   price: number;
+  sku: string;
 }
 
 export interface Sale {

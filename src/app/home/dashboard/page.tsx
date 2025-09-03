@@ -17,6 +17,11 @@ export default function Dashboard() {
       <div className="flex flex-1 overflow-hidden">
         {/* Panel principal con scroll */}
         <main className="p-6 flex flex-col gap-6 flex-1 overflow-auto">
+          {/* Header */}
+          <header className="mb-4 flex flex-col items-center text-center">
+            <h1 className="text-2xl font-bold">CAJA</h1>
+            <p className="text-gray-600">Bienvenido de nuevo</p>
+          </header>
           {/* Resumen de ventas */}
           <section className="bg-white p-4 rounded shadow">
             <h2 className="font-bold text-lg mb-2">Resumen de Ventas</h2>

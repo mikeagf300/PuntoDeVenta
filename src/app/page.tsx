@@ -2,14 +2,14 @@
 "use client";
 
 import { useAuthStore } from "@/store/authStore";
-import DashboardPage from "./home/dashboard/page";
+import HomeWrapper from "@/components/HomeWrapper/HomeWrapper";
 import LoginPage from "./login/page";
 
 export default function Home() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   if (isAuthenticated) {
-    return <DashboardPage />;
+    return <HomeWrapper />;
   }
 
   return <LoginPage />;
