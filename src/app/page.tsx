@@ -1,9 +1,16 @@
-import Dashboard from "@/components/Dashboard/dashboard";
+//src/app/page.tsx
+"use client";
+
+import { useAuthStore } from "@/store/authStore";
+import HomeWrapper from "@/components/HomeWrapper/HomeWrapper";
+import LoginPage from "./login/page";
 
 export default function Home() {
-  return (
-    <div>
-      <Dashboard />
-    </div>
-  );
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  if (isAuthenticated) {
+    return <HomeWrapper />;
+  }
+
+  return <LoginPage />;
 }
