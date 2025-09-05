@@ -5,11 +5,13 @@ import { useState } from "react";
 import NuevaVenta from "@/components/DashboardViews/NuevaVenta";
 import AgregarProducto from "@/components/DashboardViews/AgregarProducto";
 import RegistrarGasto from "@/components/DashboardViews/RegistrarGasto";
+import { Gasto } from "@/interfaces/gastos";
 
 export default function Dashboard() {
   const [activeView, setActiveView] = useState<"nueva" | "producto" | "gasto">(
     "nueva"
   );
+  const [gastos, setGastos] = useState<Gasto[]>([]);
 
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-gray-100">
@@ -76,7 +78,9 @@ export default function Dashboard() {
           <div className="flex-1 p-6 overflow-auto">
             {activeView === "nueva" && <NuevaVenta />}
             {activeView === "producto" && <AgregarProducto />}
-            {activeView === "gasto" && <RegistrarGasto />}
+            {activeView === "gasto" && (
+              <RegistrarGasto gastos={gastos} setGastos={setGastos} />
+            )}
           </div>
         </main>
       </div>
