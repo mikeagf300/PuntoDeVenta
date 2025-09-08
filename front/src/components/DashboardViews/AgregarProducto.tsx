@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createProduct } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -104,17 +105,31 @@ export default function AgregarProducto() {
   const handleGuardarProductos = () => {
     if (listaAgregar.length === 0)
       return toast.error("No hay productos en la lista.");
-    // Aquí se guardaría al backend más adelante
+    (async () => {
+      try {
+        for (const p of listaAgregar) {
+          await createProduct({
+            name: p.nombre,
+            price: p.precio,
+            stock: p.cantidad,
+            metadata: { sku: p.codigo, category: p.categoria },
+          });
+        }
+        toast.success("Productos guardados en el servidor.");
+        // Limpiar lista y formulario después
+        setListaAgregar([]);
+        setNombre("");
+        setCodigo("");
+        setCantidad(1);
+        setPrecio(1);
+        setCategoria("");
 
-    // Limpiar lista y formulario después
-    setListaAgregar([]);
-    setNombre("");
-    setCodigo("");
-    setCantidad(1);
-    setPrecio(1);
-    setCategoria("");
-
-    setModalOpen(true);
+        setModalOpen(true);
+      } catch (err) {
+        console.error(err);
+        toast.error("Error guardando productos. Revisa la consola.");
+      }
+    })();
   };
 
   const irAlInventario = () => {

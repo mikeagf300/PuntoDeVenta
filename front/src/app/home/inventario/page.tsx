@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getProducts, createProduct, updateProduct } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,6 +30,31 @@ export default function InventarioPage() {
   // Inventario
   const [inventario, setInventario] = useState<Producto[]>([]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getProducts();
+        if (!mounted) return;
+        // Map backend product shape to front Producto
+        const mapped = (data || []).map((p: any) => ({
+          id: p.id,
+          nombre: p.name,
+          codigo: p.metadata?.sku || "",
+          cantidad: p.stock || 0,
+          precio: p.price || 0,
+          categoria: p.metadata?.category || "",
+        }));
+        setInventario(mapped);
+      } catch (err) {
+        console.error("failed to load products", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Formulario
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
@@ -50,24 +76,57 @@ export default function InventarioPage() {
     const existingIndex = inventario.findIndex((p) => p.codigo === codigo);
 
     if (existingIndex >= 0) {
-      const updated = [...inventario];
-      updated[existingIndex].cantidad += cantidad;
-      updated[existingIndex].precio = precio;
-      updated[existingIndex].categoria = categoria;
-      updated[existingIndex].nombre = nombre;
-      setInventario(updated);
-      toast.success("Producto actualizado en el inventario.");
+      // Update existing product via API
+      (async () => {
+        try {
+          const existing = inventario[existingIndex];
+          await updateProduct(existing.id, {
+            name: nombre,
+            price: precio,
+            stock: cantidad,
+            metadata: { sku: codigo, category: categoria },
+          });
+          const updated = [...inventario];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            nombre,
+            codigo,
+            cantidad,
+            precio,
+            categoria,
+          };
+          setInventario(updated);
+          toast.success("Producto actualizado en el inventario.");
+        } catch (err) {
+          console.error(err);
+          toast.error("Error actualizando producto.");
+        }
+      })();
     } else {
-      const nuevoProducto: Producto = {
-        id: Date.now(),
-        nombre,
-        codigo,
-        cantidad,
-        precio,
-        categoria,
-      };
-      setInventario([nuevoProducto, ...inventario]);
-      toast.success("Producto añadido al inventario.");
+      // Create product via API
+      (async () => {
+        try {
+          const res = await createProduct({
+            name: nombre,
+            price: precio,
+            stock: cantidad,
+            metadata: { sku: codigo, category: categoria },
+          });
+          const newProd: Producto = {
+            id: res.id,
+            nombre,
+            codigo,
+            cantidad,
+            precio,
+            categoria,
+          };
+          setInventario([newProd, ...inventario]);
+          toast.success("Producto añadido al inventario.");
+        } catch (err) {
+          console.error(err);
+          toast.error("Error guardando producto.");
+        }
+      })();
     }
 
     // limpiar formulario

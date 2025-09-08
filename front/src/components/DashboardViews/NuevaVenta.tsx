@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Product, Sale, SaleItem } from "@/interfaces/productos";
-import { products } from "../mocks/inventory";
+import { getProducts } from "@/lib/api";
 
 export default function NuevaVenta() {
   const [query, setQuery] = useState("");
@@ -13,6 +13,19 @@ export default function NuevaVenta() {
   const [currentItems, setCurrentItems] = useState<SaleItem[]>([]);
   const [payment, setPayment] = useState<number>(0);
   const [salesHistory, setSalesHistory] = useState<Sale[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    getProducts()
+      .then((data) => {
+        if (mounted) setProducts(data || []);
+      })
+      .catch((err) => console.error("failed to load products", err));
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const suggestions = products.filter((p) =>
     p.name.toLowerCase().includes(query.toLowerCase())
