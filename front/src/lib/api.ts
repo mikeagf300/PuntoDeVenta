@@ -1,11 +1,17 @@
 export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+export type ProductMetadata = {
+  sku?: string;
+  category?: string;
+  [key: string]: unknown;
+};
+
 type ProductPayload = {
   name: string;
   price?: number;
   stock?: number;
-  metadata?: any;
+  metadata?: ProductMetadata;
 };
 
 export async function getProducts() {
@@ -48,5 +54,36 @@ export async function deleteProduct(id: number | string) {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`failed to delete product: ${res.status}`);
+  return res.json();
+}
+
+// Sales API
+export type SaleItemPayload = {
+  productId: number;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+export async function createSale(payload: {
+  items: SaleItemPayload[];
+  total: number;
+  payment: number;
+  change: number;
+  date: string;
+}) {
+  const res = await fetch(`${BASE_URL}/sales`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`failed to create sale: ${res.status}`);
+  return res.json();
+}
+
+export async function getSales() {
+  const res = await fetch(`${BASE_URL}/sales`);
+  if (!res.ok) throw new Error(`failed to fetch sales: ${res.status}`);
   return res.json();
 }

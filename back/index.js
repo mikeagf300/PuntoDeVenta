@@ -68,6 +68,28 @@ app.delete("/products/:id", async (req, res) => {
   }
 });
 
+// Sales endpoints
+app.post("/sales", async (req, res) => {
+  try {
+    const payload = req.body; // { items, total, payment, change, date }
+    const result = await db.createSale(payload);
+    res.status(201).json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to create sale" });
+  }
+});
+
+app.get("/sales", async (req, res) => {
+  try {
+    const sales = await db.getAllSales();
+    res.json(sales);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to fetch sales" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`PDV backend listening on http://localhost:${PORT}`);
 });

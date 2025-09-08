@@ -28,7 +28,23 @@ function init() {
         `,
           (err2) => {
             if (err2) return reject(err2);
-            resolve();
+            // Create sales table as well
+            db.run(
+              `
+              CREATE TABLE IF NOT EXISTS sales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                items TEXT NOT NULL,
+                total REAL NOT NULL DEFAULT 0,
+                payment REAL NOT NULL DEFAULT 0,
+                change REAL NOT NULL DEFAULT 0,
+                date TEXT NOT NULL
+              );
+            `,
+              (err3) => {
+                if (err3) return reject(err3);
+                resolve();
+              }
+            );
           }
         );
       });
@@ -108,6 +124,29 @@ module.exports.deleteProduct = async function (id) {
   await initIfNeeded();
   const result = await runAsync("DELETE FROM products WHERE id = ?", id);
   return result.changes > 0;
+};
+
+// Sales helpers
+module.exports.createSale = async function (payload) {
+  await initIfNeeded();
+  const { items, total = 0, payment = 0, change = 0, date } = payload;
+  const itemsStr = JSON.stringify(items || []);
+  const result = await runAsync(
+    "INSERT INTO sales (items, total, payment, change, date) VALUES (?,?,?,?,?)",
+    itemsStr,
+    total,
+    payment,
+    change,
+    date
+  );
+  return { id: result.lastID };
+};
+
+module.exports.getAllSales = async function () {
+  await initIfNeeded();
+  const rows = await allAsync("SELECT * FROM sales ORDER BY id DESC");
+  // parse items JSON
+  return rows.map((r) => ({ ...r, items: JSON.parse(r.items || "[]") }));
 };
 
 let initPromise = null;

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Product, Sale, SaleItem } from "@/interfaces/productos";
-import { getProducts } from "@/lib/api";
+import { getProducts, createSale } from "@/lib/api";
 
 export default function NuevaVenta() {
   const [query, setQuery] = useState("");
@@ -68,7 +68,6 @@ export default function NuevaVenta() {
 
   const handleFinalizeSale = () => {
     if (currentItems.length === 0) return;
-
     const newSale: Sale = {
       product: currentItems.map((i) => i.product.name).join(", "),
       quantity: currentItems.reduce((sum, i) => sum + i.quantity, 0),
@@ -78,9 +77,29 @@ export default function NuevaVenta() {
       date: new Date().toLocaleString(),
     };
 
-    setSalesHistory([newSale, ...salesHistory]);
-    setCurrentItems([]);
-    setPayment(0);
+    // Send to backend
+    (async () => {
+      try {
+        await createSale({
+          items: currentItems.map((i) => ({
+            productId: Number(i.product.id ?? 0),
+            name: i.product.name,
+            quantity: i.quantity,
+            unitPrice: i.product.price,
+            total: i.total,
+          })),
+          total: newSale.total,
+          payment: newSale.payment,
+          change: newSale.change,
+          date: newSale.date,
+        });
+        setSalesHistory([newSale, ...salesHistory]);
+        setCurrentItems([]);
+        setPayment(0);
+      } catch (err) {
+        console.error("failed to save sale", err);
+      }
+    })();
   };
 
   return (

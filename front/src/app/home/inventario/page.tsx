@@ -36,15 +36,42 @@ export default function InventarioPage() {
       try {
         const data = await getProducts();
         if (!mounted) return;
-        // Map backend product shape to front Producto
-        const mapped = (data || []).map((p: any) => ({
-          id: p.id,
-          nombre: p.name,
-          codigo: p.metadata?.sku || "",
-          cantidad: p.stock || 0,
-          precio: p.price || 0,
-          categoria: p.metadata?.category || "",
-        }));
+        // Map backend product shape to front Producto with runtime checks
+        const mapped = (data || []).map((p: unknown) => {
+          const obj = p as Record<string, unknown>;
+          const id = typeof obj.id === "number" ? obj.id : Number(obj.id || 0);
+          const name =
+            typeof obj.name === "string" ? obj.name : String(obj.name || "");
+          const stock =
+            typeof obj.stock === "number" ? obj.stock : Number(obj.stock || 0);
+          const price =
+            typeof obj.price === "number" ? obj.price : Number(obj.price || 0);
+          const metadata =
+            typeof obj.metadata === "string"
+              ? (() => {
+                  try {
+                    return JSON.parse(obj.metadata as string);
+                  } catch {
+                    return {};
+                  }
+                })()
+              : (obj.metadata as Record<string, unknown> | undefined) || {};
+
+          return {
+            id,
+            nombre: name,
+            codigo:
+              typeof metadata?.sku === "string"
+                ? metadata.sku
+                : String(metadata?.sku || ""),
+            cantidad: stock,
+            precio: price,
+            categoria:
+              typeof metadata?.category === "string"
+                ? metadata.category
+                : String(metadata?.category || ""),
+          } as Producto;
+        });
         setInventario(mapped);
       } catch (err) {
         console.error("failed to load products", err);
