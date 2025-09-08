@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getProducts, createProduct, updateProduct } from "@/lib/api";
+import { Product } from "@/interfaces/productos";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,18 +18,9 @@ import { Label } from "@/components/ui/label";
 
 const categoriasMock = ["Bebidas", "Snacks", "Abarrotes", "Lácteos", "Otros"];
 
-interface Producto {
-  id: number;
-  nombre: string;
-  codigo: string;
-  cantidad: number;
-  precio: number;
-  categoria: string;
-}
-
 export default function InventarioPage() {
   // Inventario
-  const [inventario, setInventario] = useState<Producto[]>([]);
+  const [inventario, setInventario] = useState<Product[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -36,7 +28,7 @@ export default function InventarioPage() {
       try {
         const data = await getProducts();
         if (!mounted) return;
-        // Map backend product shape to front Producto with runtime checks
+        // Map backend product shape to shared Product with runtime checks
         const mapped = (data || []).map((p: unknown) => {
           const obj = p as Record<string, unknown>;
           const id = typeof obj.id === "number" ? obj.id : Number(obj.id || 0);
@@ -59,18 +51,18 @@ export default function InventarioPage() {
 
           return {
             id,
-            nombre: name,
-            codigo:
+            name,
+            sku:
               typeof metadata?.sku === "string"
                 ? metadata.sku
                 : String(metadata?.sku || ""),
-            cantidad: stock,
-            precio: price,
-            categoria:
+            stock,
+            price,
+            category:
               typeof metadata?.category === "string"
                 ? metadata.category
                 : String(metadata?.category || ""),
-          } as Producto;
+          } as Product;
         });
         setInventario(mapped);
       } catch (err) {
@@ -82,7 +74,7 @@ export default function InventarioPage() {
     };
   }, []);
 
-  // Formulario
+  // Formulario (campos en español, convertimos a Product al guardar)
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
   const [cantidad, setCantidad] = useState<number>(1);
@@ -100,7 +92,7 @@ export default function InventarioPage() {
     if (!precio || precio < 1) return toast.error("Precio inválido.");
     if (!categoria) return toast.error("Selecciona una categoría.");
 
-    const existingIndex = inventario.findIndex((p) => p.codigo === codigo);
+    const existingIndex = inventario.findIndex((p) => p.sku === codigo);
 
     if (existingIndex >= 0) {
       // Update existing product via API
@@ -116,11 +108,11 @@ export default function InventarioPage() {
           const updated = [...inventario];
           updated[existingIndex] = {
             ...updated[existingIndex],
-            nombre,
-            codigo,
-            cantidad,
-            precio,
-            categoria,
+            name: nombre,
+            sku: codigo,
+            stock: cantidad,
+            price: precio,
+            category: categoria,
           };
           setInventario(updated);
           toast.success("Producto actualizado en el inventario.");
@@ -139,13 +131,13 @@ export default function InventarioPage() {
             stock: cantidad,
             metadata: { sku: codigo, category: categoria },
           });
-          const newProd: Producto = {
+          const newProd: Product = {
             id: res.id,
-            nombre,
-            codigo,
-            cantidad,
-            precio,
-            categoria,
+            name: nombre,
+            sku: codigo,
+            stock: cantidad,
+            price: precio,
+            category: categoria,
           };
           setInventario([newProd, ...inventario]);
           toast.success("Producto añadido al inventario.");
@@ -171,8 +163,8 @@ export default function InventarioPage() {
 
   const handleEditar = (
     id: number,
-    field: keyof Producto,
-    value: Producto[keyof Producto]
+    field: keyof Product,
+    value: Product[keyof Product]
   ) => {
     const updated = inventario.map((p) =>
       p.id === id ? { ...p, [field]: value } : p
@@ -181,12 +173,12 @@ export default function InventarioPage() {
   };
 
   const inventarioFiltrado = inventario.filter((p) => {
-    const coincideBusqueda = p.nombre
+    const coincideBusqueda = p.name
       .toLowerCase()
       .includes(busqueda.toLowerCase());
 
     const coincideCategoria =
-      filtroCategoria === "all" || p.categoria === filtroCategoria;
+      filtroCategoria === "all" || p.category === filtroCategoria;
 
     return coincideBusqueda && coincideCategoria;
   });
@@ -318,15 +310,15 @@ export default function InventarioPage() {
               <tbody>
                 {inventarioFiltrado.map((p) => (
                   <tr key={p.id} className="text-sm">
-                    <td className="p-2 border">{p.nombre}</td>
-                    <td className="p-2 border">{p.codigo}</td>
+                    <td className="p-2 border">{p.name}</td>
+                    <td className="p-2 border">{p.sku}</td>
                     <td className="p-2 border">
                       <Input
                         type="number"
-                        value={p.cantidad}
+                        value={p.stock}
                         min={1}
                         onChange={(e) =>
-                          handleEditar(p.id, "cantidad", Number(e.target.value))
+                          handleEditar(p.id, "stock", Number(e.target.value))
                         }
                         className="w-20"
                       />
@@ -334,19 +326,19 @@ export default function InventarioPage() {
                     <td className="p-2 border">
                       <Input
                         type="number"
-                        value={p.precio}
+                        value={p.price}
                         min={1}
                         onChange={(e) =>
-                          handleEditar(p.id, "precio", Number(e.target.value))
+                          handleEditar(p.id, "price", Number(e.target.value))
                         }
                         className="w-24"
                       />
                     </td>
                     <td className="p-2 border">
                       <Select
-                        value={p.categoria}
+                        value={p.category}
                         onValueChange={(val) =>
-                          handleEditar(p.id, "categoria", val)
+                          handleEditar(p.id, "category", val)
                         }
                       >
                         <SelectTrigger className="w-32">

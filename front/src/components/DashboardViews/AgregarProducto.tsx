@@ -20,16 +20,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Product } from "@/interfaces/productos";
 
 const categoriasMock = ["Bebidas", "Snacks", "Abarrotes", "Lácteos", "Otros"];
-
-interface Producto {
-  nombre: string;
-  codigo: string;
-  cantidad: number;
-  precio: number;
-  categoria: string;
-}
 
 export default function AgregarProducto() {
   const router = useRouter();
@@ -42,7 +35,7 @@ export default function AgregarProducto() {
   const [categoria, setCategoria] = useState("");
 
   // Lista temporal antes de guardar
-  const [listaAgregar, setListaAgregar] = useState<Producto[]>([]);
+  const [listaAgregar, setListaAgregar] = useState<Product[]>([]);
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -54,23 +47,24 @@ export default function AgregarProducto() {
     if (!precio || precio < 1) return toast.error("Precio inválido.");
     if (!categoria) return toast.error("Selecciona una categoría.");
 
-    const existingIndex = listaAgregar.findIndex((p) => p.codigo === codigo);
+    const existingIndex = listaAgregar.findIndex((p) => p.sku === codigo);
 
     if (existingIndex >= 0) {
       const updated = [...listaAgregar];
-      updated[existingIndex].cantidad += cantidad;
-      updated[existingIndex].precio = precio;
-      updated[existingIndex].categoria = categoria;
-      updated[existingIndex].nombre = nombre;
+      updated[existingIndex].stock += cantidad;
+      updated[existingIndex].price = precio;
+      updated[existingIndex].category = categoria;
+      updated[existingIndex].name = nombre;
       setListaAgregar(updated);
       toast.success("Producto actualizado en la lista.");
     } else {
-      const nuevoProducto: Producto = {
-        nombre,
-        codigo,
-        cantidad,
-        precio,
-        categoria,
+      const nuevoProducto: Product = {
+        name: nombre,
+        sku: codigo,
+        stock: cantidad,
+        price: precio,
+        category: categoria,
+        id: 0,
       };
       setListaAgregar([nuevoProducto, ...listaAgregar]);
       toast.success("Producto añadido a la lista.");
@@ -94,8 +88,8 @@ export default function AgregarProducto() {
   // Editar producto en lista
   const handleEditarProducto = (
     index: number,
-    field: keyof Producto,
-    value: Producto[keyof Producto]
+    field: keyof Product,
+    value: Product[keyof Product]
   ) => {
     const updated = [...listaAgregar];
     updated[index][field] = value as never;
@@ -109,10 +103,10 @@ export default function AgregarProducto() {
       try {
         for (const p of listaAgregar) {
           await createProduct({
-            name: p.nombre,
-            price: p.precio,
-            stock: p.cantidad,
-            metadata: { sku: p.codigo, category: p.categoria },
+            name: p.name,
+            price: p.price,
+            stock: p.stock,
+            metadata: { sku: p.sku, category: p.category },
           });
         }
         toast.success("Productos guardados en el servidor.");
@@ -225,8 +219,8 @@ export default function AgregarProducto() {
                 className="flex flex-wrap md:flex-nowrap justify-between items-center p-2 border rounded-md gap-2"
               >
                 <div className="flex-1 space-y-1">
-                  <p className="font-medium">{p.nombre}</p>
-                  <p className="text-sm">Código: {p.codigo}</p>
+                  <p className="font-medium">{p.name}</p>
+                  <p className="text-sm">Código: {p.sku}</p>
 
                   <div className="flex gap-2 flex-wrap">
                     <div className="flex items-center gap-1">
@@ -234,12 +228,12 @@ export default function AgregarProducto() {
                       <Input
                         type="number"
                         min={1}
-                        value={p.cantidad}
+                        value={p.stock}
                         className="w-16 p-1 text-center text-sm"
                         onChange={(e) =>
                           handleEditarProducto(
                             idx,
-                            "cantidad",
+                            "stock",
                             Number(e.target.value)
                           )
                         }
@@ -251,12 +245,12 @@ export default function AgregarProducto() {
                       <Input
                         type="number"
                         min={1}
-                        value={p.precio}
+                        value={p.price}
                         className="w-20 p-1 text-center text-sm"
                         onChange={(e) =>
                           handleEditarProducto(
                             idx,
-                            "precio",
+                            "price",
                             Number(e.target.value)
                           )
                         }
@@ -266,9 +260,9 @@ export default function AgregarProducto() {
                     <div className="flex items-center gap-1">
                       <label className="text-sm">Cat:</label>
                       <Select
-                        value={p.categoria}
+                        value={p.category}
                         onValueChange={(value) =>
-                          handleEditarProducto(idx, "categoria", value)
+                          handleEditarProducto(idx, "category", value)
                         }
                       >
                         <SelectTrigger className="w-32">

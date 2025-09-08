@@ -1,5 +1,5 @@
 export interface Product {
-  id?: number; // opcional porque lo generas al guardar
+  id: number; // opcional porque lo generas al guardar
   name: string;
   category: string;
   stock: number;
