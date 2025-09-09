@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProducts, createProduct, updateProduct } from "@/lib/api";
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  ProductMetadata,
+} from "@/lib/api";
 import { Product } from "@/interfaces/productos";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,57 +27,61 @@ const categoriasMock = ["Bebidas", "Snacks", "Abarrotes", "Lácteos", "Otros"];
 export default function InventarioPage() {
   // Inventario
   const [inventario, setInventario] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getProducts();
+      // Map backend product shape to shared Product with runtime checks
+      const mapped = (data || []).map((p: unknown) => {
+        const obj = p as Record<string, unknown>;
+        const id = typeof obj.id === "number" ? obj.id : Number(obj.id || 0);
+        const name =
+          typeof obj.name === "string" ? obj.name : String(obj.name || "");
+        const stock =
+          typeof obj.stock === "number" ? obj.stock : Number(obj.stock || 0);
+        const price =
+          typeof obj.price === "number" ? obj.price : Number(obj.price || 0);
+        const metadata =
+          typeof obj.metadata === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(obj.metadata as string);
+                } catch {
+                  return {};
+                }
+              })()
+            : (obj.metadata as Record<string, unknown> | undefined) || {};
+
+        return {
+          id,
+          name,
+          sku:
+            typeof metadata?.sku === "string"
+              ? metadata.sku
+              : String(metadata?.sku || ""),
+          stock,
+          price,
+          category:
+            typeof metadata?.category === "string"
+              ? metadata.category
+              : String(metadata?.category || ""),
+        } as Product;
+      });
+      setInventario(mapped);
+    } catch (err) {
+      console.error("failed to load products", err);
+      setError("Error cargando productos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await getProducts();
-        if (!mounted) return;
-        // Map backend product shape to shared Product with runtime checks
-        const mapped = (data || []).map((p: unknown) => {
-          const obj = p as Record<string, unknown>;
-          const id = typeof obj.id === "number" ? obj.id : Number(obj.id || 0);
-          const name =
-            typeof obj.name === "string" ? obj.name : String(obj.name || "");
-          const stock =
-            typeof obj.stock === "number" ? obj.stock : Number(obj.stock || 0);
-          const price =
-            typeof obj.price === "number" ? obj.price : Number(obj.price || 0);
-          const metadata =
-            typeof obj.metadata === "string"
-              ? (() => {
-                  try {
-                    return JSON.parse(obj.metadata as string);
-                  } catch {
-                    return {};
-                  }
-                })()
-              : (obj.metadata as Record<string, unknown> | undefined) || {};
-
-          return {
-            id,
-            name,
-            sku:
-              typeof metadata?.sku === "string"
-                ? metadata.sku
-                : String(metadata?.sku || ""),
-            stock,
-            price,
-            category:
-              typeof metadata?.category === "string"
-                ? metadata.category
-                : String(metadata?.category || ""),
-          } as Product;
-        });
-        setInventario(mapped);
-      } catch (err) {
-        console.error("failed to load products", err);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    loadProducts();
   }, []);
 
   // Formulario (campos en español, convertimos a Product al guardar)
@@ -132,7 +142,7 @@ export default function InventarioPage() {
             metadata: { sku: codigo, category: categoria },
           });
           const newProd: Product = {
-            id: res.id,
+            id: typeof res?.id === "number" ? res.id : Number(res?.id || 0),
             name: nombre,
             sku: codigo,
             stock: cantidad,
@@ -156,12 +166,18 @@ export default function InventarioPage() {
     setCategoria("");
   };
 
-  const handleEliminar = (id: number) => {
-    setInventario((prev) => prev.filter((p) => p.id !== id));
-    toast.success("Producto eliminado del inventario.");
+  const handleEliminar = async (id: number) => {
+    try {
+      await deleteProduct(id);
+      setInventario((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Producto eliminado del inventario.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error eliminando producto.");
+    }
   };
 
-  const handleEditar = (
+  const handleEditar = async (
     id: number,
     field: keyof Product,
     value: Product[keyof Product]
@@ -170,6 +186,32 @@ export default function InventarioPage() {
       p.id === id ? { ...p, [field]: value } : p
     );
     setInventario(updated);
+
+    // Persist change to backend
+    try {
+      const prod = updated.find((p) => p.id === id);
+      if (!prod) return;
+      const payload: Partial<{
+        name: string;
+        price?: number;
+        stock?: number;
+        metadata?: ProductMetadata;
+      }> = {};
+      if (field === "name" || field === "price" || field === "stock") {
+        if (field === "name") payload.name = prod.name;
+        if (field === "price") payload.price = prod.price;
+        if (field === "stock") payload.stock = prod.stock;
+      } else {
+        // category or sku -> metadata
+        payload.metadata = { sku: prod.sku, category: prod.category };
+      }
+
+      await updateProduct(id, payload);
+      toast.success("Producto sincronizado.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error sincronizando producto.");
+    }
   };
 
   const inventarioFiltrado = inventario.filter((p) => {
@@ -188,6 +230,21 @@ export default function InventarioPage() {
       <Toaster position="top-right" richColors />
 
       <h1 className="text-2xl font-bold">Inventario de Productos</h1>
+
+      {/* Estado de carga / error */}
+      {isLoading && (
+        <Card className="p-3 bg-yellow-50 text-sm text-gray-700">
+          Cargando productos...
+        </Card>
+      )}
+      {error && (
+        <Card className="p-3 bg-red-50 text-sm text-red-700 flex items-center justify-between">
+          <span>{error}</span>
+          <Button onClick={loadProducts} size="sm">
+            Refrescar
+          </Button>
+        </Card>
+      )}
 
       {/* Formulario */}
       <Card className="p-4 shadow-md rounded-2xl space-y-4">
