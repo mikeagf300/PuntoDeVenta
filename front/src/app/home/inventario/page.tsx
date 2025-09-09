@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  ProductMetadata,
+} from "@/lib/api";
+import { Product } from "@/interfaces/productos";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,20 +24,67 @@ import { Label } from "@/components/ui/label";
 
 const categoriasMock = ["Bebidas", "Snacks", "Abarrotes", "Lácteos", "Otros"];
 
-interface Producto {
-  id: number;
-  nombre: string;
-  codigo: string;
-  cantidad: number;
-  precio: number;
-  categoria: string;
-}
-
 export default function InventarioPage() {
   // Inventario
-  const [inventario, setInventario] = useState<Producto[]>([]);
+  const [inventario, setInventario] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Formulario
+  const loadProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getProducts();
+      // Map backend product shape to shared Product with runtime checks
+      const mapped = (data || []).map((p: unknown) => {
+        const obj = p as Record<string, unknown>;
+        const id = typeof obj.id === "number" ? obj.id : Number(obj.id || 0);
+        const name =
+          typeof obj.name === "string" ? obj.name : String(obj.name || "");
+        const stock =
+          typeof obj.stock === "number" ? obj.stock : Number(obj.stock || 0);
+        const price =
+          typeof obj.price === "number" ? obj.price : Number(obj.price || 0);
+        const metadata =
+          typeof obj.metadata === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(obj.metadata as string);
+                } catch {
+                  return {};
+                }
+              })()
+            : (obj.metadata as Record<string, unknown> | undefined) || {};
+
+        return {
+          id,
+          name,
+          sku:
+            typeof metadata?.sku === "string"
+              ? metadata.sku
+              : String(metadata?.sku || ""),
+          stock,
+          price,
+          category:
+            typeof metadata?.category === "string"
+              ? metadata.category
+              : String(metadata?.category || ""),
+        } as Product;
+      });
+      setInventario(mapped);
+    } catch (err) {
+      console.error("failed to load products", err);
+      setError("Error cargando productos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  // Formulario (campos en español, convertimos a Product al guardar)
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
   const [cantidad, setCantidad] = useState<number>(1);
@@ -47,27 +102,60 @@ export default function InventarioPage() {
     if (!precio || precio < 1) return toast.error("Precio inválido.");
     if (!categoria) return toast.error("Selecciona una categoría.");
 
-    const existingIndex = inventario.findIndex((p) => p.codigo === codigo);
+    const existingIndex = inventario.findIndex((p) => p.sku === codigo);
 
     if (existingIndex >= 0) {
-      const updated = [...inventario];
-      updated[existingIndex].cantidad += cantidad;
-      updated[existingIndex].precio = precio;
-      updated[existingIndex].categoria = categoria;
-      updated[existingIndex].nombre = nombre;
-      setInventario(updated);
-      toast.success("Producto actualizado en el inventario.");
+      // Update existing product via API
+      (async () => {
+        try {
+          const existing = inventario[existingIndex];
+          await updateProduct(existing.id, {
+            name: nombre,
+            price: precio,
+            stock: cantidad,
+            metadata: { sku: codigo, category: categoria },
+          });
+          const updated = [...inventario];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            name: nombre,
+            sku: codigo,
+            stock: cantidad,
+            price: precio,
+            category: categoria,
+          };
+          setInventario(updated);
+          toast.success("Producto actualizado en el inventario.");
+        } catch (err) {
+          console.error(err);
+          toast.error("Error actualizando producto.");
+        }
+      })();
     } else {
-      const nuevoProducto: Producto = {
-        id: Date.now(),
-        nombre,
-        codigo,
-        cantidad,
-        precio,
-        categoria,
-      };
-      setInventario([nuevoProducto, ...inventario]);
-      toast.success("Producto añadido al inventario.");
+      // Create product via API
+      (async () => {
+        try {
+          const res = await createProduct({
+            name: nombre,
+            price: precio,
+            stock: cantidad,
+            metadata: { sku: codigo, category: categoria },
+          });
+          const newProd: Product = {
+            id: typeof res?.id === "number" ? res.id : Number(res?.id || 0),
+            name: nombre,
+            sku: codigo,
+            stock: cantidad,
+            price: precio,
+            category: categoria,
+          };
+          setInventario([newProd, ...inventario]);
+          toast.success("Producto añadido al inventario.");
+        } catch (err) {
+          console.error(err);
+          toast.error("Error guardando producto.");
+        }
+      })();
     }
 
     // limpiar formulario
@@ -78,29 +166,61 @@ export default function InventarioPage() {
     setCategoria("");
   };
 
-  const handleEliminar = (id: number) => {
-    setInventario((prev) => prev.filter((p) => p.id !== id));
-    toast.success("Producto eliminado del inventario.");
+  const handleEliminar = async (id: number) => {
+    try {
+      await deleteProduct(id);
+      setInventario((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Producto eliminado del inventario.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error eliminando producto.");
+    }
   };
 
-  const handleEditar = (
+  const handleEditar = async (
     id: number,
-    field: keyof Producto,
-    value: Producto[keyof Producto]
+    field: keyof Product,
+    value: Product[keyof Product]
   ) => {
     const updated = inventario.map((p) =>
       p.id === id ? { ...p, [field]: value } : p
     );
     setInventario(updated);
+
+    // Persist change to backend
+    try {
+      const prod = updated.find((p) => p.id === id);
+      if (!prod) return;
+      const payload: Partial<{
+        name: string;
+        price?: number;
+        stock?: number;
+        metadata?: ProductMetadata;
+      }> = {};
+      if (field === "name" || field === "price" || field === "stock") {
+        if (field === "name") payload.name = prod.name;
+        if (field === "price") payload.price = prod.price;
+        if (field === "stock") payload.stock = prod.stock;
+      } else {
+        // category or sku -> metadata
+        payload.metadata = { sku: prod.sku, category: prod.category };
+      }
+
+      await updateProduct(id, payload);
+      toast.success("Producto sincronizado.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error sincronizando producto.");
+    }
   };
 
   const inventarioFiltrado = inventario.filter((p) => {
-    const coincideBusqueda = p.nombre
+    const coincideBusqueda = p.name
       .toLowerCase()
       .includes(busqueda.toLowerCase());
 
     const coincideCategoria =
-      filtroCategoria === "all" || p.categoria === filtroCategoria;
+      filtroCategoria === "all" || p.category === filtroCategoria;
 
     return coincideBusqueda && coincideCategoria;
   });
@@ -110,6 +230,21 @@ export default function InventarioPage() {
       <Toaster position="top-right" richColors />
 
       <h1 className="text-2xl font-bold">Inventario de Productos</h1>
+
+      {/* Estado de carga / error */}
+      {isLoading && (
+        <Card className="p-3 bg-yellow-50 text-sm text-gray-700">
+          Cargando productos...
+        </Card>
+      )}
+      {error && (
+        <Card className="p-3 bg-red-50 text-sm text-red-700 flex items-center justify-between">
+          <span>{error}</span>
+          <Button onClick={loadProducts} size="sm">
+            Refrescar
+          </Button>
+        </Card>
+      )}
 
       {/* Formulario */}
       <Card className="p-4 shadow-md rounded-2xl space-y-4">
@@ -232,15 +367,15 @@ export default function InventarioPage() {
               <tbody>
                 {inventarioFiltrado.map((p) => (
                   <tr key={p.id} className="text-sm">
-                    <td className="p-2 border">{p.nombre}</td>
-                    <td className="p-2 border">{p.codigo}</td>
+                    <td className="p-2 border">{p.name}</td>
+                    <td className="p-2 border">{p.sku}</td>
                     <td className="p-2 border">
                       <Input
                         type="number"
-                        value={p.cantidad}
+                        value={p.stock}
                         min={1}
                         onChange={(e) =>
-                          handleEditar(p.id, "cantidad", Number(e.target.value))
+                          handleEditar(p.id, "stock", Number(e.target.value))
                         }
                         className="w-20"
                       />
@@ -248,19 +383,19 @@ export default function InventarioPage() {
                     <td className="p-2 border">
                       <Input
                         type="number"
-                        value={p.precio}
+                        value={p.price}
                         min={1}
                         onChange={(e) =>
-                          handleEditar(p.id, "precio", Number(e.target.value))
+                          handleEditar(p.id, "price", Number(e.target.value))
                         }
                         className="w-24"
                       />
                     </td>
                     <td className="p-2 border">
                       <Select
-                        value={p.categoria}
+                        value={p.category}
                         onValueChange={(val) =>
-                          handleEditar(p.id, "categoria", val)
+                          handleEditar(p.id, "category", val)
                         }
                       >
                         <SelectTrigger className="w-32">

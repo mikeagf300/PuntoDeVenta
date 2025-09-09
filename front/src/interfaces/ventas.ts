@@ -9,3 +9,17 @@ export interface Venta {
   total: number; // Total de la venta (cantidad * precioUnitario)
   fecha: string; // Fecha de la venta en formato "YYYY-MM-DD"
 }
+
+export interface VentaApiItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface VentaApi {
+  id?: number | string;
+  items: VentaApiItem[];
+  total?: number;
+  date?: string;
+}

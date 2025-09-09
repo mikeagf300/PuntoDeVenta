@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Home, Package, CreditCard } from "lucide-react";
@@ -8,6 +8,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const sidebarRef = useRef<HTMLElement | null>(null);
 
   // Detectar si es móvil
   useEffect(() => {
@@ -21,6 +22,21 @@ export default function Sidebar() {
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Cerrar sidebar cuando se hace click fuera
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!isOpen) return; // sólo si está abierto
+      const target = e.target as Node | null;
+      if (!sidebarRef.current) return;
+      if (target && sidebarRef.current.contains(target)) return; // click dentro
+      // click fuera
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
 
   const menuItems = [
     { label: "Caja", path: "/home/dashboard", icon: Home },
@@ -51,6 +67,7 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <aside
+        ref={sidebarRef}
         className={`fixed bg-gradient-to-b from-blue-800 to-blue-900 text-white p-4 pt-16 flex flex-col gap-3 h-full z-40 transition-all duration-300
           ${isOpen ? "w-64 translate-x-0" : "-translate-x-full"}`}
         style={{ transition: "transform 0.3s ease" }}

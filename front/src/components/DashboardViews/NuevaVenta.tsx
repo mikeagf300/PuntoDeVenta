@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Product, Sale, SaleItem } from "@/interfaces/productos";
-import { products } from "../mocks/inventory";
+import { getProducts, createSale, getSales } from "@/lib/api";
 
 export default function NuevaVenta() {
   const [query, setQuery] = useState("");
@@ -13,6 +13,74 @@ export default function NuevaVenta() {
   const [currentItems, setCurrentItems] = useState<SaleItem[]>([]);
   const [payment, setPayment] = useState<number>(0);
   const [salesHistory, setSalesHistory] = useState<Sale[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    getProducts()
+      .then((data) => {
+        if (mounted) setProducts(data || []);
+      })
+      .catch((err) => console.error("failed to load products", err));
+    // cargar historial de ventas desde backend
+    (async () => {
+      try {
+        const data = await getSales();
+        if (!mounted) return;
+        const mapped = (data || []).map((s: unknown) => {
+          const obj = s as Record<string, unknown>;
+          // soportar formato API con items o formato antiguo
+          if (Array.isArray(obj.items)) {
+            const items = obj.items as unknown[];
+            const product = items
+              .map(
+                (it) => ((it as Record<string, unknown>).name as string) || ""
+              )
+              .join(", ");
+            const quantity = items.reduce<number>(
+              (sum, it) =>
+                sum + (Number((it as Record<string, unknown>).quantity) || 0),
+              0
+            );
+            const total =
+              typeof obj.total === "number"
+                ? obj.total
+                : items.reduce<number>(
+                    (sum, it) =>
+                      sum +
+                      (Number((it as Record<string, unknown>).total) || 0),
+                    0
+                  );
+            return {
+              product,
+              quantity,
+              total,
+              payment: Number(obj.payment) || 0,
+              change: Number(obj.change) || 0,
+              date: (obj.date as string) || String(new Date().toLocaleString()),
+            } as Sale;
+          }
+
+          // formato simple ya usado en UI
+          return {
+            product: (obj.product as string) || String(obj.product || ""),
+            quantity: Number(obj.quantity) || 0,
+            total: Number(obj.total) || 0,
+            payment: Number(obj.payment) || 0,
+            change: Number(obj.change) || 0,
+            date: (obj.date as string) || String(new Date().toLocaleString()),
+          } as Sale;
+        });
+
+        if (mounted) setSalesHistory(mapped);
+      } catch (err) {
+        console.error("failed to load sales history", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const suggestions = products.filter((p) =>
     p.name.toLowerCase().includes(query.toLowerCase())
@@ -55,7 +123,6 @@ export default function NuevaVenta() {
 
   const handleFinalizeSale = () => {
     if (currentItems.length === 0) return;
-
     const newSale: Sale = {
       product: currentItems.map((i) => i.product.name).join(", "),
       quantity: currentItems.reduce((sum, i) => sum + i.quantity, 0),
@@ -65,9 +132,86 @@ export default function NuevaVenta() {
       date: new Date().toLocaleString(),
     };
 
-    setSalesHistory([newSale, ...salesHistory]);
-    setCurrentItems([]);
-    setPayment(0);
+    // Send to backend
+    (async () => {
+      try {
+        await createSale({
+          items: currentItems.map((i) => ({
+            productId: Number(i.product.id ?? 0),
+            name: i.product.name,
+            quantity: i.quantity,
+            unitPrice: i.product.price,
+            total: i.total,
+          })),
+          total: newSale.total,
+          payment: newSale.payment,
+          change: newSale.change,
+          date: newSale.date,
+        });
+        // refrescar historial desde backend para asegurar consistencia
+        try {
+          const remote = await getSales();
+          const mapped = (remote || []).map((s: unknown) => {
+            const obj = s as Record<string, unknown>;
+            if (Array.isArray(obj.items)) {
+              const items = obj.items as unknown[];
+              const product = items
+                .map(
+                  (it) => ((it as Record<string, unknown>).name as string) || ""
+                )
+                .join(", ");
+              const quantity = items.reduce<number>(
+                (sum, it) =>
+                  sum + (Number((it as Record<string, unknown>).quantity) || 0),
+                0
+              );
+              const total =
+                typeof obj.total === "number"
+                  ? obj.total
+                  : items.reduce<number>(
+                      (sum, it) =>
+                        sum +
+                        (Number((it as Record<string, unknown>).total) || 0),
+                      0
+                    );
+              return {
+                product,
+                quantity,
+                total,
+                payment: Number(obj.payment) || 0,
+                change: Number(obj.change) || 0,
+                date:
+                  (obj.date as string) || String(new Date().toLocaleString()),
+              } as Sale;
+            }
+            return {
+              product: (obj.product as string) || String(obj.product || ""),
+              quantity: Number(obj.quantity) || 0,
+              total: Number(obj.total) || 0,
+              payment: Number(obj.payment) || 0,
+              change: Number(obj.change) || 0,
+              date: (obj.date as string) || String(new Date().toLocaleString()),
+            } as Sale;
+          });
+          setSalesHistory(mapped);
+          // notificar al resto de la app que las ventas se actualizaron
+          try {
+            window.dispatchEvent(new Event("sales:updated"));
+          } catch {}
+        } catch (err) {
+          console.error(err);
+          // si falla el refresco, añadir la venta localmente como fallback
+          setSalesHistory([newSale, ...salesHistory]);
+          try {
+            window.dispatchEvent(new Event("sales:updated"));
+          } catch {}
+        }
+        setCurrentItems([]);
+        setPayment(0);
+      } catch (err) {
+        console.error("failed to save sale", err);
+      }
+    })();
   };
 
   return (
