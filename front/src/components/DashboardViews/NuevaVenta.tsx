@@ -194,10 +194,17 @@ export default function NuevaVenta() {
             } as Sale;
           });
           setSalesHistory(mapped);
+          // notificar al resto de la app que las ventas se actualizaron
+          try {
+            window.dispatchEvent(new Event("sales:updated"));
+          } catch {}
         } catch (err) {
           console.error(err);
           // si falla el refresco, añadir la venta localmente como fallback
           setSalesHistory([newSale, ...salesHistory]);
+          try {
+            window.dispatchEvent(new Event("sales:updated"));
+          } catch {}
         }
         setCurrentItems([]);
         setPayment(0);
