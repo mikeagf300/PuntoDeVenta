@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Product, Sale, SaleItem } from "@/interfaces/productos";
-import { getProducts, createSale } from "@/lib/api";
+import { getProducts, createSale, getSales } from "@/lib/api";
 
 export default function NuevaVenta() {
   const [query, setQuery] = useState("");
@@ -22,6 +22,61 @@ export default function NuevaVenta() {
         if (mounted) setProducts(data || []);
       })
       .catch((err) => console.error("failed to load products", err));
+    // cargar historial de ventas desde backend
+    (async () => {
+      try {
+        const data = await getSales();
+        if (!mounted) return;
+        const mapped = (data || []).map((s: unknown) => {
+          const obj = s as Record<string, unknown>;
+          // soportar formato API con items o formato antiguo
+          if (Array.isArray(obj.items)) {
+            const items = obj.items as unknown[];
+            const product = items
+              .map(
+                (it) => ((it as Record<string, unknown>).name as string) || ""
+              )
+              .join(", ");
+            const quantity = items.reduce<number>(
+              (sum, it) =>
+                sum + (Number((it as Record<string, unknown>).quantity) || 0),
+              0
+            );
+            const total =
+              typeof obj.total === "number"
+                ? obj.total
+                : items.reduce<number>(
+                    (sum, it) =>
+                      sum +
+                      (Number((it as Record<string, unknown>).total) || 0),
+                    0
+                  );
+            return {
+              product,
+              quantity,
+              total,
+              payment: Number(obj.payment) || 0,
+              change: Number(obj.change) || 0,
+              date: (obj.date as string) || String(new Date().toLocaleString()),
+            } as Sale;
+          }
+
+          // formato simple ya usado en UI
+          return {
+            product: (obj.product as string) || String(obj.product || ""),
+            quantity: Number(obj.quantity) || 0,
+            total: Number(obj.total) || 0,
+            payment: Number(obj.payment) || 0,
+            change: Number(obj.change) || 0,
+            date: (obj.date as string) || String(new Date().toLocaleString()),
+          } as Sale;
+        });
+
+        if (mounted) setSalesHistory(mapped);
+      } catch (err) {
+        console.error("failed to load sales history", err);
+      }
+    })();
     return () => {
       mounted = false;
     };
@@ -93,7 +148,57 @@ export default function NuevaVenta() {
           change: newSale.change,
           date: newSale.date,
         });
-        setSalesHistory([newSale, ...salesHistory]);
+        // refrescar historial desde backend para asegurar consistencia
+        try {
+          const remote = await getSales();
+          const mapped = (remote || []).map((s: unknown) => {
+            const obj = s as Record<string, unknown>;
+            if (Array.isArray(obj.items)) {
+              const items = obj.items as unknown[];
+              const product = items
+                .map(
+                  (it) => ((it as Record<string, unknown>).name as string) || ""
+                )
+                .join(", ");
+              const quantity = items.reduce<number>(
+                (sum, it) =>
+                  sum + (Number((it as Record<string, unknown>).quantity) || 0),
+                0
+              );
+              const total =
+                typeof obj.total === "number"
+                  ? obj.total
+                  : items.reduce<number>(
+                      (sum, it) =>
+                        sum +
+                        (Number((it as Record<string, unknown>).total) || 0),
+                      0
+                    );
+              return {
+                product,
+                quantity,
+                total,
+                payment: Number(obj.payment) || 0,
+                change: Number(obj.change) || 0,
+                date:
+                  (obj.date as string) || String(new Date().toLocaleString()),
+              } as Sale;
+            }
+            return {
+              product: (obj.product as string) || String(obj.product || ""),
+              quantity: Number(obj.quantity) || 0,
+              total: Number(obj.total) || 0,
+              payment: Number(obj.payment) || 0,
+              change: Number(obj.change) || 0,
+              date: (obj.date as string) || String(new Date().toLocaleString()),
+            } as Sale;
+          });
+          setSalesHistory(mapped);
+        } catch (err) {
+          console.error(err);
+          // si falla el refresco, añadir la venta localmente como fallback
+          setSalesHistory([newSale, ...salesHistory]);
+        }
         setCurrentItems([]);
         setPayment(0);
       } catch (err) {
