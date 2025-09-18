@@ -30,7 +30,7 @@ export default function RegistrarGasto({
   const [monto, setMonto] = useState<number | "">("");
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
 
-  const handleGuardarGasto = () => {
+  const handleGuardarGasto = async () => {
     if (!nombre.trim())
       return toast.error("El nombre del gasto es obligatorio.");
     if (!categoria) return toast.error("Selecciona una categoría.");
@@ -42,15 +42,26 @@ export default function RegistrarGasto({
       categoria,
       monto: Number(monto),
       fecha,
+      id: 0,
     };
-    setGastos([nuevoGasto, ...gastos]);
 
-    setNombre("");
-    setCategoria("");
-    setMonto("");
-    setFecha(new Date().toISOString().slice(0, 10));
-
-    toast.success("Gasto registrado correctamente.");
+    try {
+      const res = await fetch("http://localhost:3001/gastos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nuevoGasto),
+      });
+      if (!res.ok) throw new Error("Error al guardar gasto");
+      const { id } = await res.json();
+      setGastos([{ ...nuevoGasto, id }, ...gastos]);
+      setNombre("");
+      setCategoria("");
+      setMonto("");
+      setFecha(new Date().toISOString().slice(0, 10));
+      toast.success("Gasto registrado correctamente.");
+    } catch (err) {
+      toast.error("Error al guardar gasto en el servidor.");
+    }
   };
 
   return (

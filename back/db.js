@@ -16,6 +16,7 @@ function init() {
       // Enable WAL
       db.run("PRAGMA journal_mode = WAL;", (e) => {
         if (e) return reject(e);
+        // Crear tabla de productos
         db.run(
           `
           CREATE TABLE IF NOT EXISTS products (
@@ -28,7 +29,7 @@ function init() {
         `,
           (err2) => {
             if (err2) return reject(err2);
-            // Create sales table as well
+            // Crear tabla de ventas
             db.run(
               `
               CREATE TABLE IF NOT EXISTS sales (
@@ -42,7 +43,22 @@ function init() {
             `,
               (err3) => {
                 if (err3) return reject(err3);
-                resolve();
+                // Crear tabla de gastos
+                db.run(
+                  `
+                  CREATE TABLE IF NOT EXISTS gastos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    monto REAL NOT NULL,
+                    fecha TEXT NOT NULL
+                  );
+                  `,
+                  (err4) => {
+                    if (err4) return reject(err4);
+                    resolve();
+                  }
+                );
               }
             );
           }
@@ -140,6 +156,63 @@ module.exports.createSale = async function (payload) {
     date
   );
   return { id: result.lastID };
+};
+
+// Gastos helpers
+module.exports.createGasto = async function (payload) {
+  await initIfNeeded();
+  const { nombre, categoria, monto, fecha } = payload;
+  const result = await runAsync(
+    "INSERT INTO gastos (nombre, categoria, monto, fecha) VALUES (?,?,?,?)",
+    nombre,
+    categoria,
+    monto,
+    fecha
+  );
+  return result.lastID;
+};
+
+module.exports.getAllGastos = async function () {
+  await initIfNeeded();
+  return allAsync("SELECT * FROM gastos ORDER BY id DESC");
+};
+
+module.exports.getGastoById = async function (id) {
+  await initIfNeeded();
+  return getAsync("SELECT * FROM gastos WHERE id = ?", id);
+};
+
+module.exports.updateGasto = async function (id, payload) {
+  await initIfNeeded();
+  const fields = [];
+  const values = [];
+  if (payload.nombre !== undefined) {
+    fields.push("nombre = ?");
+    values.push(payload.nombre);
+  }
+  if (payload.categoria !== undefined) {
+    fields.push("categoria = ?");
+    values.push(payload.categoria);
+  }
+  if (payload.monto !== undefined) {
+    fields.push("monto = ?");
+    values.push(payload.monto);
+  }
+  if (payload.fecha !== undefined) {
+    fields.push("fecha = ?");
+    values.push(payload.fecha);
+  }
+  if (fields.length === 0) return false;
+  values.push(id);
+  const sql = `UPDATE gastos SET ${fields.join(", ")} WHERE id = ?`;
+  const result = await runAsync(sql, ...values);
+  return result.changes > 0;
+};
+
+module.exports.deleteGasto = async function (id) {
+  await initIfNeeded();
+  const result = await runAsync("DELETE FROM gastos WHERE id = ?", id);
+  return result.changes > 0;
 };
 
 module.exports.getAllSales = async function () {

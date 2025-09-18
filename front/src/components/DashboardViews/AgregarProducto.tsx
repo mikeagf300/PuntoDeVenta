@@ -128,7 +128,7 @@ export default function AgregarProducto() {
 
   const irAlInventario = () => {
     setModalOpen(false);
-    router.push("/inventario"); // Ajusta según tu ruta
+    router.push("/home/inventario"); // Ajusta según tu ruta
   };
 
   return (

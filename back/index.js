@@ -89,6 +89,60 @@ app.get("/sales", async (req, res) => {
     res.status(500).json({ error: "failed to fetch sales" });
   }
 });
+// Gastos endpoints
+app.get("/gastos", async (req, res) => {
+  try {
+    const gastos = await db.getAllGastos();
+    res.json(gastos);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to fetch gastos" });
+  }
+});
+
+app.get("/gastos/:id", async (req, res) => {
+  try {
+    const gasto = await db.getGastoById(req.params.id);
+    if (!gasto) return res.status(404).json({ error: "not found" });
+    res.json(gasto);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to fetch gasto" });
+  }
+});
+
+app.post("/gastos", async (req, res) => {
+  try {
+    const payload = req.body;
+    const id = await db.createGasto(payload);
+    res.status(201).json({ id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to create gasto" });
+  }
+});
+
+app.put("/gastos/:id", async (req, res) => {
+  try {
+    const updated = await db.updateGasto(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: "not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to update gasto" });
+  }
+});
+
+app.delete("/gastos/:id", async (req, res) => {
+  try {
+    const removed = await db.deleteGasto(req.params.id);
+    if (!removed) return res.status(404).json({ error: "not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to delete gasto" });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`PDV backend listening on http://localhost:${PORT}`);

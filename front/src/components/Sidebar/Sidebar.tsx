@@ -42,6 +42,11 @@ export default function Sidebar() {
     { label: "Caja", path: "/home/dashboard", icon: Home },
     { label: "Inventario", path: "/home/inventario", icon: Package },
     { label: "Ventas", path: "/home/ventas", icon: CreditCard },
+    {
+      label: "Historial de Gastos",
+      path: "/home/gastos/historial",
+      icon: CreditCard,
+    },
   ];
 
   return (
