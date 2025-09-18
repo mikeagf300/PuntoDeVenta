@@ -36,18 +36,26 @@ function isVenta(v: unknown): v is Venta {
 }
 
 interface Props {
-  ventas?: Venta[]; // optional: if not provided, component will fetch
-  gastos: Gasto[];
+  ventas?: Venta[];
+  gastos?: Gasto[];
 }
 
-export default function ResumenVentas({ ventas, gastos }: Props) {
+export default function ResumenVentas(props: Props) {
+  const ventas = props.ventas;
+  const gastos = props.gastos;
+
   const [ventasState, setVentasState] = useState<Array<Venta | VentaApi>>(
     ventas || []
   );
+  const [gastosState, setGastosState] = useState<Gasto[]>(gastos || []);
   const [loading, setLoading] = useState<boolean>(
     !ventas || ventas.length === 0
   );
+  const [loadingGastos, setLoadingGastos] = useState<boolean>(
+    !gastos || gastos.length === 0
+  );
   const [error, setError] = useState<string | null>(null);
+  const [errorGastos, setErrorGastos] = useState<string | null>(null);
 
   useEffect(() => {
     if (ventas && ventas.length > 0) {
@@ -56,6 +64,14 @@ export default function ResumenVentas({ ventas, gastos }: Props) {
       setError(null);
     }
   }, [ventas]);
+
+  useEffect(() => {
+    if (gastos && gastos.length > 0) {
+      setGastosState(gastos);
+      setLoadingGastos(false);
+      setErrorGastos(null);
+    }
+  }, [gastos]);
 
   useEffect(() => {
     let mounted = true;
@@ -77,10 +93,30 @@ export default function ResumenVentas({ ventas, gastos }: Props) {
           setLoading(false);
         });
     }
+    // Cargar gastos si no se pasan por props
+    if ((!gastos || gastos.length === 0) && mounted) {
+      setLoadingGastos(true);
+      fetch("http://localhost:3001/gastos")
+        .then((res) => res.json())
+        .then((data) => {
+          if (!mounted) return;
+          setGastosState(Array.isArray(data) ? data : []);
+          setErrorGastos(null);
+        })
+        .catch((err) => {
+          if (!mounted) return;
+          setErrorGastos(err?.message || "Error al obtener gastos");
+          setGastosState([]);
+        })
+        .finally(() => {
+          if (!mounted) return;
+          setLoadingGastos(false);
+        });
+    }
     return () => {
       mounted = false;
     };
-  }, [ventas]);
+  }, [ventas, gastos]);
 
   // calcular totalVentas: si venta en estilo API usa items, si no usa total directo
   const totalVentas = ventasState.reduce((acc, v) => {
@@ -93,17 +129,18 @@ export default function ResumenVentas({ ventas, gastos }: Props) {
     return acc;
   }, 0);
 
-  const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+  const totalGastos = gastosState.reduce((acc, g) => acc + g.monto, 0);
   const gananciaNeta = totalVentas - totalGastos;
 
   const transacciones = ventasState.length;
 
   return (
     <Card className="p-4 shadow-md rounded-2xl space-y-2">
-      <h2 className="text-xl font-bold">Resumen de Resultados</h2>
-      {loading && <p>Cargando ventas...</p>}
-      {error && <p className="text-red-600">{error}</p>}
-      {!loading && !error && (
+      {(loading || loadingGastos) && <p>Cargando datos...</p>}
+      {(error || errorGastos) && (
+        <p className="text-red-600">{error || errorGastos}</p>
+      )}
+      {!loading && !loadingGastos && !error && !errorGastos && (
         <>
           <p>Total ventas: ${totalVentas}</p>
           <p>Total gastos: ${totalGastos}</p>
