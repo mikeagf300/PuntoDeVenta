@@ -13,6 +13,62 @@ app.get("/health", async (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Usuarios endpoints
+app.get("/usuarios", async (req, res) => {
+  try {
+    const usuarios = await db.getAllUsuarios();
+    res.json(usuarios);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to fetch usuarios" });
+  }
+});
+
+app.post("/usuarios", async (req, res) => {
+  try {
+    const payload = req.body;
+    const id = await db.createUsuario(payload);
+    res.status(201).json({ id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to create usuario" });
+  }
+});
+
+app.put("/usuarios/:id", async (req, res) => {
+  try {
+    const updated = await db.updateUsuario(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: "not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to update usuario" });
+  }
+});
+
+app.delete("/usuarios/:id", async (req, res) => {
+  try {
+    const removed = await db.deleteUsuario(req.params.id);
+    if (!removed) return res.status(404).json({ error: "not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to delete usuario" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await db.verifyUsuario(username, password);
+    if (!user) return res.status(401).json({ error: "invalid credentials" });
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to login" });
+  }
+});
+
 // Products CRUD
 app.get("/products", async (req, res) => {
   try {

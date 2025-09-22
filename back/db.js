@@ -46,17 +46,32 @@ function init() {
                 // Crear tabla de gastos
                 db.run(
                   `
-                  CREATE TABLE IF NOT EXISTS gastos (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    categoria TEXT NOT NULL,
-                    monto REAL NOT NULL,
-                    fecha TEXT NOT NULL
-                  );
+                    CREATE TABLE IF NOT EXISTS gastos (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      nombre TEXT NOT NULL,
+                      categoria TEXT NOT NULL,
+                      monto REAL NOT NULL,
+                      fecha TEXT NOT NULL
+                    );
                   `,
                   (err4) => {
                     if (err4) return reject(err4);
-                    resolve();
+                    // Crear tabla de usuarios
+                    db.run(
+                      `
+                        CREATE TABLE IF NOT EXISTS usuarios (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                          username TEXT NOT NULL UNIQUE,
+                          password TEXT NOT NULL,
+                          role TEXT NOT NULL DEFAULT 'user',
+                          nombre TEXT
+                        );
+                      `,
+                      (err5) => {
+                        if (err5) return reject(err5);
+                        resolve();
+                      }
+                    );
                   }
                 );
               }
@@ -67,6 +82,86 @@ function init() {
     });
   });
 }
+
+// Usuarios helpers
+const bcrypt = require("bcryptjs");
+
+module.exports.createUsuario = async function (payload) {
+  await initIfNeeded();
+  const { username, password, role = "user", nombre = null } = payload;
+  const hash = await bcrypt.hash(password, 10);
+  const result = await runAsync(
+    "INSERT INTO usuarios (username, password, role, nombre) VALUES (?,?,?,?)",
+    username,
+    hash,
+    role,
+    nombre
+  );
+  return result.lastID;
+};
+
+module.exports.getUsuarioByUsername = async function (username) {
+  await initIfNeeded();
+  return getAsync("SELECT * FROM usuarios WHERE username = ?", username);
+};
+
+module.exports.getAllUsuarios = async function () {
+  await initIfNeeded();
+  return allAsync(
+    "SELECT id, username, role, nombre FROM usuarios ORDER BY id DESC"
+  );
+};
+
+module.exports.updateUsuario = async function (id, payload) {
+  await initIfNeeded();
+  const fields = [];
+  const values = [];
+  if (payload.username !== undefined) {
+    fields.push("username = ?");
+    values.push(payload.username);
+  }
+  if (payload.password !== undefined) {
+    const hash = await bcrypt.hash(payload.password, 10);
+    fields.push("password = ?");
+    values.push(hash);
+  }
+  if (payload.role !== undefined) {
+    fields.push("role = ?");
+    values.push(payload.role);
+  }
+  if (payload.nombre !== undefined) {
+    fields.push("nombre = ?");
+    values.push(payload.nombre);
+  }
+  if (fields.length === 0) return false;
+  values.push(id);
+  const sql = `UPDATE usuarios SET ${fields.join(", ")} WHERE id = ?`;
+  const result = await runAsync(sql, ...values);
+  return result.changes > 0;
+};
+
+module.exports.deleteUsuario = async function (id) {
+  await initIfNeeded();
+  const result = await runAsync("DELETE FROM usuarios WHERE id = ?", id);
+  return result.changes > 0;
+};
+
+module.exports.verifyUsuario = async function (username, password) {
+  await initIfNeeded();
+  const user = await getAsync(
+    "SELECT * FROM usuarios WHERE username = ?",
+    username
+  );
+  if (!user) return false;
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return false;
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    nombre: user.nombre,
+  };
+};
 
 const allAsync = (...args) =>
   new Promise((res, rej) =>

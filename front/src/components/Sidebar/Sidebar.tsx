@@ -47,6 +47,11 @@ export default function Sidebar() {
       path: "/home/gastos/historial",
       icon: CreditCard,
     },
+    {
+      label: "Usuarios",
+      path: "/home/admin/usuarios",
+      icon: Menu,
+    },
   ];
 
   return (
