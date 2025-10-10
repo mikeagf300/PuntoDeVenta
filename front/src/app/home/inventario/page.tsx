@@ -82,7 +82,7 @@ export default function InventarioPage() {
 
   // Filtros
   const [busqueda, setBusqueda] = useState("");
-  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("all");
 
   const handleAñadirProducto = () => {
     if (!nombre.trim()) return toast.error("El nombre es obligatorio.");

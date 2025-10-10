@@ -53,7 +53,7 @@ export default function Sidebar() {
           },
           {
             label: "Usuarios",
-            path: "/admin/usuarios",
+            path: "/home/admin/usuarios",
             icon: Menu,
           },
         ]
