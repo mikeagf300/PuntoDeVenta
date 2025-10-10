@@ -1,17 +1,12 @@
 export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export type ProductMetadata = {
-  sku?: string;
-  category?: string;
-  [key: string]: unknown;
-};
-
-type ProductPayload = {
+export type ProductPayload = {
   name: string;
   price?: number;
   stock?: number;
-  metadata?: ProductMetadata;
+  sku?: string;
+  category?: string;
 };
 
 export async function getProducts() {

@@ -126,8 +126,38 @@ app.delete("/products/:id", async (req, res) => {
 
 // Sales endpoints
 app.post("/sales", async (req, res) => {
+  console.log("¡Llamada recibida!");
   try {
-    const payload = req.body; // { items, total, payment, change, date }
+    const payload = req.body;
+    console.log("Venta recibida:", JSON.stringify(payload));
+    // 1. Descontar inventario por cada producto vendido
+    for (const item of payload.items) {
+      // Busca el producto por ID
+      const product = await db.getProductById(item.productId);
+      if (!product) {
+        return res
+          .status(404)
+          .json({ error: `Producto no encontrado: ${item.name}` });
+      }
+      if (product.stock < item.quantity) {
+        return res
+          .status(400)
+          .json({ error: `Stock insuficiente para ${product.name}` });
+      }
+      // LOG aquí, ya tienes product y item
+      console.log("Actualizando producto:", {
+        id: product.id,
+        nombre: product.name,
+        stock_anterior: product.stock,
+        cantidad_vendida: item.quantity,
+        stock_nuevo: Number(product.stock) - Number(item.quantity),
+      });
+      // Actualiza el stock
+      await db.updateProduct(product.id, {
+        stock: Number(product.stock) - Number(item.quantity),
+      });
+    }
+    // 2. Registrar la venta
     const result = await db.createSale(payload);
     res.status(201).json(result);
   } catch (err) {

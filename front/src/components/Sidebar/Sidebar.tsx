@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useAuthStore } from "@/store/authStore";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Home, Package, CreditCard } from "lucide-react";
@@ -38,20 +39,25 @@ export default function Sidebar() {
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen]);
 
+  const user = useAuthStore((state) => state.user);
   const menuItems = [
     { label: "Caja", path: "/home/dashboard", icon: Home },
     { label: "Inventario", path: "/home/inventario", icon: Package },
     { label: "Ventas", path: "/home/ventas", icon: CreditCard },
-    {
-      label: "Historial de Gastos",
-      path: "/home/gastos/historial",
-      icon: CreditCard,
-    },
-    {
-      label: "Usuarios",
-      path: "/home/admin/usuarios",
-      icon: Menu,
-    },
+    ...(user?.role === "admin"
+      ? [
+          {
+            label: "Historial de Gastos",
+            path: "/home/gastos/historial",
+            icon: CreditCard,
+          },
+          {
+            label: "Usuarios",
+            path: "/admin/usuarios",
+            icon: Menu,
+          },
+        ]
+      : []),
   ];
 
   return (

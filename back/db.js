@@ -17,56 +17,58 @@ function init() {
       db.run("PRAGMA journal_mode = WAL;", (e) => {
         if (e) return reject(e);
         // Crear tabla de productos
+        // Crear tabla de productos
         db.run(
           `
-          CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL DEFAULT 0,
-            stock INTEGER NOT NULL DEFAULT 0,
-            metadata TEXT
-          );
-        `,
+  CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT,
+    sku TEXT UNIQUE,
+    stock INTEGER NOT NULL DEFAULT 0,
+    price REAL NOT NULL DEFAULT 0
+  );
+  `,
           (err2) => {
             if (err2) return reject(err2);
             // Crear tabla de ventas
             db.run(
               `
-              CREATE TABLE IF NOT EXISTS sales (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                items TEXT NOT NULL,
-                total REAL NOT NULL DEFAULT 0,
-                payment REAL NOT NULL DEFAULT 0,
-                change REAL NOT NULL DEFAULT 0,
-                date TEXT NOT NULL
-              );
-            `,
+      CREATE TABLE IF NOT EXISTS sales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        items TEXT NOT NULL,
+        total REAL NOT NULL DEFAULT 0,
+        payment REAL NOT NULL DEFAULT 0,
+        change REAL NOT NULL DEFAULT 0,
+        date TEXT NOT NULL
+      );
+    `,
               (err3) => {
                 if (err3) return reject(err3);
                 // Crear tabla de gastos
                 db.run(
                   `
-                    CREATE TABLE IF NOT EXISTS gastos (
-                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      nombre TEXT NOT NULL,
-                      categoria TEXT NOT NULL,
-                      monto REAL NOT NULL,
-                      fecha TEXT NOT NULL
-                    );
-                  `,
+            CREATE TABLE IF NOT EXISTS gastos (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              nombre TEXT NOT NULL,
+              categoria TEXT NOT NULL,
+              monto REAL NOT NULL,
+              fecha TEXT NOT NULL
+            );
+          `,
                   (err4) => {
                     if (err4) return reject(err4);
                     // Crear tabla de usuarios
                     db.run(
                       `
-                        CREATE TABLE IF NOT EXISTS usuarios (
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                          username TEXT NOT NULL UNIQUE,
-                          password TEXT NOT NULL,
-                          role TEXT NOT NULL DEFAULT 'user',
-                          nombre TEXT
-                        );
-                      `,
+                CREATE TABLE IF NOT EXISTS usuarios (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  username TEXT NOT NULL UNIQUE,
+                  password TEXT NOT NULL,
+                  role TEXT NOT NULL DEFAULT 'user',
+                  nombre TEXT
+                );
+              `,
                       (err5) => {
                         if (err5) return reject(err5);
                         resolve();
@@ -191,23 +193,27 @@ module.exports.getProductById = async function (id) {
   return getAsync("SELECT * FROM products WHERE id = ?", id);
 };
 
+// Crear producto
 module.exports.createProduct = async function (payload) {
   await initIfNeeded();
-  const { name, price = 0, stock = 0, metadata = null } = payload;
+  const { name, price = 0, stock = 0, sku = null, category = null } = payload;
   const result = await runAsync(
-    "INSERT INTO products (name, price, stock, metadata) VALUES (?,?,?,?)",
+    "INSERT INTO products (name, category, sku, stock, price) VALUES (?,?,?,?,?)",
     name,
-    price,
+    category,
+    sku,
     stock,
-    metadata ? JSON.stringify(metadata) : null
+    price
   );
   return result.lastID;
 };
 
+// Actualizar producto
 module.exports.updateProduct = async function (id, payload) {
   await initIfNeeded();
   const fields = [];
   const values = [];
+
   if (payload.name !== undefined) {
     fields.push("name = ?");
     values.push(payload.name);
@@ -220,13 +226,20 @@ module.exports.updateProduct = async function (id, payload) {
     fields.push("stock = ?");
     values.push(payload.stock);
   }
-  if (payload.metadata !== undefined) {
-    fields.push("metadata = ?");
-    values.push(JSON.stringify(payload.metadata));
+  if (payload.sku !== undefined) {
+    fields.push("sku = ?");
+    values.push(payload.sku);
   }
+  if (payload.category !== undefined) {
+    fields.push("category = ?");
+    values.push(payload.category);
+  }
+
   if (fields.length === 0) return false;
+
   values.push(id);
   const sql = `UPDATE products SET ${fields.join(", ")} WHERE id = ?`;
+  console.log("Ejecutando updateProduct:", sql, values);
   const result = await runAsync(sql, ...values);
   return result.changes > 0;
 };

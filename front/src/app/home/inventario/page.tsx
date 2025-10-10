@@ -6,7 +6,6 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-  ProductMetadata,
 } from "@/lib/api";
 import { Product } from "@/interfaces/productos";
 import { Input } from "@/components/ui/input";
@@ -45,30 +44,20 @@ export default function InventarioPage() {
           typeof obj.stock === "number" ? obj.stock : Number(obj.stock || 0);
         const price =
           typeof obj.price === "number" ? obj.price : Number(obj.price || 0);
-        const metadata =
-          typeof obj.metadata === "string"
-            ? (() => {
-                try {
-                  return JSON.parse(obj.metadata as string);
-                } catch {
-                  return {};
-                }
-              })()
-            : (obj.metadata as Record<string, unknown> | undefined) || {};
+        const sku =
+          typeof obj.sku === "string" ? obj.sku : String(obj.sku || "");
+        const category =
+          typeof obj.category === "string"
+            ? obj.category
+            : String(obj.category || "");
 
         return {
           id,
           name,
-          sku:
-            typeof metadata?.sku === "string"
-              ? metadata.sku
-              : String(metadata?.sku || ""),
+          sku,
           stock,
           price,
-          category:
-            typeof metadata?.category === "string"
-              ? metadata.category
-              : String(metadata?.category || ""),
+          category,
         } as Product;
       });
       setInventario(mapped);
@@ -113,7 +102,8 @@ export default function InventarioPage() {
             name: nombre,
             price: precio,
             stock: cantidad,
-            metadata: { sku: codigo, category: categoria },
+            sku: codigo,
+            category: categoria,
           });
           const updated = [...inventario];
           updated[existingIndex] = {
@@ -139,7 +129,8 @@ export default function InventarioPage() {
             name: nombre,
             price: precio,
             stock: cantidad,
-            metadata: { sku: codigo, category: categoria },
+            sku: codigo,
+            category: categoria,
           });
           const newProd: Product = {
             id: typeof res?.id === "number" ? res.id : Number(res?.id || 0),
@@ -195,15 +186,16 @@ export default function InventarioPage() {
         name: string;
         price?: number;
         stock?: number;
-        metadata?: ProductMetadata;
+        sku?: string;
+        category?: string;
       }> = {};
       if (field === "name" || field === "price" || field === "stock") {
         if (field === "name") payload.name = prod.name;
         if (field === "price") payload.price = prod.price;
         if (field === "stock") payload.stock = prod.stock;
-      } else {
-        // category or sku -> metadata
-        payload.metadata = { sku: prod.sku, category: prod.category };
+      } else if (field === "sku" || field === "category") {
+        if (field === "sku") payload.sku = prod.sku;
+        if (field === "category") payload.category = prod.category;
       }
 
       await updateProduct(id, payload);

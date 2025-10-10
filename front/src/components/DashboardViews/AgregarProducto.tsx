@@ -106,7 +106,8 @@ export default function AgregarProducto() {
             name: p.name,
             price: p.price,
             stock: p.stock,
-            metadata: { sku: p.sku, category: p.category },
+            sku: p.sku,
+            category: p.category,
           });
         }
         toast.success("Productos guardados en el servidor.");

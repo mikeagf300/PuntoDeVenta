@@ -132,7 +132,6 @@ export default function NuevaVenta() {
       date: new Date().toLocaleString(),
     };
 
-    // Send to backend
     (async () => {
       try {
         await createSale({
@@ -148,6 +147,27 @@ export default function NuevaVenta() {
           change: newSale.change,
           date: newSale.date,
         });
+
+        // Actualizar inventario localmente
+        setProducts((prevProducts) =>
+          prevProducts.map((prod) => {
+            const soldItem = currentItems.find(
+              (item) => item.product.id === prod.id
+            );
+            if (soldItem) {
+              return {
+                ...prod,
+                stock: (prod.stock ?? 0) - soldItem.quantity,
+              };
+            }
+            return prod;
+          })
+        );
+
+        // Refrescar productos para mostrar inventario actualizado
+        const updatedProducts = await getProducts();
+        setProducts(updatedProducts || []);
+
         // refrescar historial desde backend para asegurar consistencia
         try {
           const remote = await getSales();
@@ -194,13 +214,10 @@ export default function NuevaVenta() {
             } as Sale;
           });
           setSalesHistory(mapped);
-          // notificar al resto de la app que las ventas se actualizaron
           try {
             window.dispatchEvent(new Event("sales:updated"));
           } catch {}
         } catch (err) {
-          console.error(err);
-          // si falla el refresco, añadir la venta localmente como fallback
           setSalesHistory([newSale, ...salesHistory]);
           try {
             window.dispatchEvent(new Event("sales:updated"));

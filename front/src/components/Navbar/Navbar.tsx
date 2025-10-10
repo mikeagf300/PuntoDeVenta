@@ -1,6 +1,17 @@
 "use client";
 
+import { useAuthStore } from "@/store/authStore";
+import { useRouter } from "next/navigation";
+
 export default function Navbar() {
+  const logout = useAuthStore((state) => state.logout);
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
+
   return (
     <header className="w-full mb-6">
       <div className="bg-blue-600 text-white p-2 flex items-center justify-between">
@@ -10,7 +21,10 @@ export default function Navbar() {
         {/* Usuario + Logout alineados a la derecha */}
         <div className="flex items-center gap-4">
           <p className="font-semibold">Usuario: Admin</p>
-          <button className="px-4 py-2 rounded-lg text-white bg-red-600/80 hover:bg-red-600 transition-colors">
+          <button
+            className="px-4 py-2 rounded-lg text-white bg-red-600/80 hover:bg-red-600 transition-colors"
+            onClick={handleLogout}
+          >
             Logout
           </button>
         </div>

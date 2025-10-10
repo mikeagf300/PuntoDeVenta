@@ -18,7 +18,7 @@ Endpoints expuestos
 - GET /health -> { status: 'ok' }
 - GET /products
 - GET /products/:id
-- POST /products { name, price, stock, metadata }
+- POST /products { name, price, stock, sku, category }
 - PUT /products/:id
 - DELETE /products/:id
 
