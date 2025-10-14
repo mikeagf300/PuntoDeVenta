@@ -1,0 +1,35 @@
+{
+  "name": "pdv-electron",
+  "version": "1.0.0",
+  "description": "PuntoDeVenta Electron package (bundles front + back)",
+  "main": "electron/main.js",
+  "author": "MiguelGomez",
+  "scripts": {
+    "postinstall": "cd front && npm install && cd ../back && npm install",
+    "build-front": "cd front && npm install && npm run build",
+    "start-back": "cd back && npm install && npm start",
+    "start-front": "cd front && npm install && npm run start",
+    "start": "electron .",
+    "dist": "electron-builder --windows --x64"
+  },
+  "build": {
+    "appId": "com.tudominio.pdv",
+    "files": [
+      "back/**",
+      "front/**",
+      "electron/**",
+      "package.json",
+      "node_modules/**"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "devDependencies": {
+    "electron": "^26.0.0",
+    "electron-builder": "^24.6.0"
+  }
+}

@@ -2,8 +2,13 @@ const path = require("path");
 const fs = require("fs");
 const sqlite3 = require("sqlite3").verbose();
 const { promisify } = require("util");
+const crypto = require("crypto");
 
-const dataDir = path.join(__dirname, "data");
+// Allow overriding data directory from environment (used by Electron)
+const defaultDataDir = path.join(__dirname, "data");
+const dataDir = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : defaultDataDir;
 const dbPath = path.join(dataDir, "db.sqlite");
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -47,6 +52,57 @@ function init() {
             );
           }
         );
+        // Create users table and seed admin if needed
+        db.run(
+          `
+              CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                metadata TEXT,
+                created_at TEXT NOT NULL
+              );
+            `,
+          (err4) => {
+            if (err4) return reject(err4);
+            // Seed an admin user if none exists
+            const defaultUsername = process.env.ADMIN_USERNAME || "admin";
+            const defaultPassword = process.env.ADMIN_PASSWORD || "admin123";
+            db.get(
+              "SELECT id FROM users WHERE username = ? LIMIT 1",
+              defaultUsername,
+              (e, row) => {
+                if (e) return reject(e);
+                if (row) return resolve(); // admin already exists, finish init
+
+                try {
+                  const salt = crypto.randomBytes(16).toString("hex");
+                  const hash = crypto
+                    .scryptSync(defaultPassword, salt, 64)
+                    .toString("hex");
+                  const now = new Date().toISOString();
+                  db.run(
+                    "INSERT INTO users (username, password_hash, salt, role, metadata, created_at) VALUES (?,?,?,?,?,?)",
+                    defaultUsername,
+                    hash,
+                    salt,
+                    "admin",
+                    null,
+                    now,
+                    (insErr) => {
+                      if (insErr) return reject(insErr);
+                      resolve();
+                    }
+                  );
+                } catch (hashErr) {
+                  return reject(hashErr);
+                }
+              }
+            );
+          }
+        );
       });
     });
   });
@@ -67,6 +123,55 @@ const runAsync = (...args) =>
       res(this);
     })
   );
+
+// --- User helpers (password hashing using Node's crypto.scrypt) ---
+function hashPasswordSync(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return { salt, hash };
+}
+
+function verifyPasswordSync(password, salt, expectedHash) {
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return hash === expectedHash;
+}
+
+module.exports.createUser = async function (payload) {
+  await initIfNeeded();
+  const { username, password, role = "user", metadata = null } = payload;
+  if (!username || !password) throw new Error("username and password required");
+  const { salt, hash } = hashPasswordSync(password);
+  const result = await runAsync(
+    "INSERT INTO users (username, password_hash, salt, role, metadata, created_at) VALUES (?,?,?,?,?,?)",
+    username,
+    hash,
+    salt,
+    role,
+    metadata ? JSON.stringify(metadata) : null,
+    new Date().toISOString()
+  );
+  return result.lastID;
+};
+
+module.exports.getUserByUsername = async function (username) {
+  await initIfNeeded();
+  return getAsync("SELECT * FROM users WHERE username = ?", username);
+};
+
+module.exports.verifyUser = async function (username, password) {
+  await initIfNeeded();
+  const user = await getAsync(
+    "SELECT * FROM users WHERE username = ?",
+    username
+  );
+  if (!user) return null;
+  const ok = verifyPasswordSync(password, user.salt, user.password_hash);
+  if (!ok) return null;
+  // hide sensitive data
+  delete user.password_hash;
+  delete user.salt;
+  return user;
+};
 
 module.exports._init = init;
 

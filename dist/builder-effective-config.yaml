@@ -1,0 +1,13 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.tudominio.pdv
+files:
+  - filter:
+      - back/**
+      - front/**
+      - electron/**
+      - package.json
+win:
+  target: nsis
+electronVersion: 26.6.10
