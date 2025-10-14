@@ -8,6 +8,7 @@ files:
       - front/**
       - electron/**
       - package.json
+      - node_modules/**
 win:
   target: nsis
 electronVersion: 26.6.10
